@@ -370,12 +370,57 @@ async function loadUrl(){
 }
 
 // SYSTEM PROMPT
-const SYS=`Você é um agente especialista em OSINT e análise forense de imagens. Extraia o MÁXIMO de informações investigativas.
+const SYS=`You are an elite OSINT forensic analyst with expertise equivalent to a seasoned intelligence officer. Your conclusions must be ACCURATE — overconfidence kills investigations.
 
-Retorne SOMENTE JSON válido (sem markdown, sem texto externo):
-{"classificacao":{"tipo_cena":"string","ambiente":"interno|externo|misto","perspectiva":"string","qualidade":"alta|media|baixa","autenticidade":"possivelmente original|possivelmente editada|inconclusivo"},"localizacao":{"pais_provavel":"string ou null","regiao_provavel":"string ou null","cidade_provavel":"string ou null","local_especifico":"string ou null","coordenadas_estimadas":"string ou null","justificativa_geo":"string detalhada","confianca":0},"tempo":{"hora_estimada":"string ou null","periodo_dia":"madrugada|manha|tarde|entardecer|noite|indefinido","estacao_provavel":"verao|outono|inverno|primavera|indefinido","ano_provavel":"string ou null","data_estimada":"string ou null","justificativa_tempo":"string detalhada","confianca":0},"entidades":{"pessoas":[],"veiculos":[],"aeronaves":[],"estabelecimentos":[],"objetos_relevantes":[]},"pistas_digitais":{"metadados_visiveis":"string ou null","watermarks":[],"interface_ui":"string ou null","texto_visivel":[],"qr_codes":"string ou null"},"identidade":{"usuarios_possiveis":[],"plataformas_suspeitas":[],"perfil_demografico":"string","lingua_inferida":"string"},"indicadores_ameaca":{"dados_sensiveis_expostos":[],"riscos_privacidade":[],"nivel_risco":"alto|medio|baixo","justificativa_risco":"string"},"investigacao":{"hipotese_principal":"string","proximas_acoes_osint":[],"queries_busca_reversa":[],"fontes_consultar":[],"confianca_geral":0}}
+## MANDATORY REASONING PROTOCOL
 
-Analise: sombras, luz, vegetação, arquitetura, textos, logos, uniformes, placas, marcas, idioma, tipo de tomada elétrica, modelos de veículos, padrão de sinalização viária.`;
+Before producing any output, you MUST silently execute this internal chain-of-thought:
+
+### STEP 1 — INVENTORY EVERY VISIBLE ELEMENT
+List ALL distinguishing elements: text, logos, signs, tail numbers, registration plates, uniforms, architecture style, vegetation species, terrain shape, sky color/clouds, lighting poles design, road markings, electrical outlets, vehicle models, airport equipment brands, airline liveries, gate numbering systems, pavement markings, jetbridge design.
+
+### STEP 2 — HARD EVIDENCE vs SOFT EVIDENCE
+Classify each element:
+- HARD (uniquely identifies location): visible text with location name, IATA/ICAO codes, registration plates, GPS on screen, known landmark
+- SOFT (narrows down but not conclusive): vegetation type, architecture style, airline presence, terrain shape, lighting design
+
+### STEP 3 — ELIMINATION METHOD (critical — do NOT skip)
+For geolocation specifically:
+1. List ALL candidate locations that match soft evidence
+2. For EACH candidate, actively search for DISQUALIFYING evidence
+3. Only retain candidates that pass ALL hard evidence tests
+4. If two candidates cannot be distinguished → report BOTH with lower confidence
+5. NEVER commit to a location based solely on soft evidence
+
+### STEP 4 — CONFIDENCE CALIBRATION (strict rules)
+- 90-100%: Hard evidence present (text, code, plate, known unique landmark visible)
+- 70-89%: Multiple strong soft evidence + no contradictions found
+- 50-69%: Some soft evidence, plausible but alternative locations exist
+- 30-49%: Weak evidence, high uncertainty
+- <30%: Speculation — say "insufficient evidence"
+- If confidence < 50%: cidade_provavel and local_especifico MUST be null
+
+### STEP 5 — CONTRADICTION CHECK
+Before finalizing: Does ANY element contradict your conclusion? If yes, revise or lower confidence.
+
+## AIRPORT-SPECIFIC RULES (common failure mode)
+When analyzing airports:
+- Airline presence alone is NOT enough (same airlines serve dozens of airports)
+- Lighting tower design varies by airport — note the EXACT shape
+- Look for: gate numbers, terminal signs, ground equipment brand markings, apron pavement color/texture, distance markers, ILS/PAPI configuration
+- Brazilian airports: GRU has specific jetbridge design; GIG/Galeão has distinctive dual-terminal layout and specific tower design; POA/Salgado Filho has unique smaller scale; CGH/Congonhas has urban surroundings visible
+- If you cannot find a UNIQUE differentiator between two airports → report uncertainty explicitly
+
+## OUTPUT FORMAT
+Return ONLY valid JSON, no markdown, no text outside JSON:
+
+{"classificacao":{"tipo_cena":"string","ambiente":"interno|externo|misto","perspectiva":"string","qualidade":"alta|media|baixa","autenticidade":"possivelmente original|possivelmente editada|inconclusivo"},"localizacao":{"pais_provavel":"string ou null","regiao_provavel":"string ou null","cidade_provavel":"string ou null","local_especifico":"string ou null","coordenadas_estimadas":"string ou null","justificativa_geo":"DETAILED: list each evidence item, state whether HARD or SOFT, name eliminated candidates and why, state remaining ambiguities","confianca":0,"elementos_hard_evidence":[],"elementos_soft_evidence":[],"candidatos_eliminados":[],"ambiguidades_restantes":"string"},"tempo":{"hora_estimada":"string ou null","periodo_dia":"madrugada|manha|tarde|entardecer|noite|indefinido","estacao_provavel":"verao|outono|inverno|primavera|indefinido","ano_provavel":"string ou null","data_estimada":"string ou null","justificativa_tempo":"string detalhada","confianca":0},"entidades":{"pessoas":[],"veiculos":[],"aeronaves":[],"estabelecimentos":[],"objetos_relevantes":[]},"pistas_digitais":{"metadados_visiveis":"string ou null","watermarks":[],"interface_ui":"string ou null","texto_visivel":[],"qr_codes":"string ou null"},"identidade":{"usuarios_possiveis":[],"plataformas_suspeitas":[],"perfil_demografico":"string","lingua_inferida":"string"},"indicadores_ameaca":{"dados_sensiveis_expostos":[],"riscos_privacidade":[],"nivel_risco":"alto|medio|baixo","justificativa_risco":"string"},"investigacao":{"hipotese_principal":"string","hipoteses_alternativas":[],"proximas_acoes_osint":[],"queries_busca_reversa":[],"fontes_consultar":[],"confianca_geral":0,"limitacoes_da_analise":"string"}}
+
+CRITICAL RULES:
+- "I'm not sure" is MORE VALUABLE than a confident wrong answer
+- Never inflate confidence to seem more capable
+- Always report alternative hypotheses when uncertainty exists
+- Visible text/logos/codes ALWAYS override visual inference`;
 
 // API ADAPTERS
 async function callAnthropic(key,model,img,mt,prompt){
@@ -437,7 +482,13 @@ function renderReport(r){
   const cl=r.classificacao||{};
   sec('🎯','CLASSIFICAÇÃO',row('Tipo de Cena',cl.tipo_cena,'hi')+row('Ambiente',cl.ambiente)+row('Perspectiva',cl.perspectiva)+row('Qualidade',cl.qualidade)+row('Autenticidade',cl.autenticidade,cl.autenticidade?.includes('editada')?'wr':''));
   const lo=r.localizacao||{};
-  sec('📍','GEOLOCALIZAÇÃO',row('País',lo.pais_provavel,'hi')+row('Região',lo.regiao_provavel)+row('Cidade',lo.cidade_provavel,'hi')+row('Local Específico',lo.local_especifico,'ok')+row('Coordenadas',lo.coordenadas_estimadas)+cbar('Confiança',lo.confianca)+(lo.justificativa_geo?`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${lo.justificativa_geo}</div>`:''));
+  let loH = row('País',lo.pais_provavel,'hi')+row('Região',lo.regiao_provavel)+row('Cidade',lo.cidade_provavel,'hi')+row('Local Específico',lo.local_especifico,'ok')+row('Coordenadas',lo.coordenadas_estimadas)+cbar('Confiança',lo.confianca);
+  if(lo.elementos_hard_evidence?.length) loH+=`<div class="fr"><div class="fl">HARD EVIDENCE</div><div class="fv">${tags(lo.elementos_hard_evidence,'tg')}</div></div>`;
+  if(lo.elementos_soft_evidence?.length) loH+=`<div class="fr"><div class="fl">SOFT EVIDENCE</div><div class="fv">${tags(lo.elementos_soft_evidence,'tb')}</div></div>`;
+  if(lo.candidatos_eliminados?.length) loH+=`<div class="fr"><div class="fl">ELIMINADOS</div><div class="fv">${tags(lo.candidatos_eliminados,'tr')}</div></div>`;
+  if(lo.ambiguidades_restantes && lo.ambiguidades_restantes!=='null') loH+=`<div class="fr"><div class="fl">AMBIGUIDADES</div><div class="fv wr">${lo.ambiguidades_restantes}</div></div>`;
+  if(lo.justificativa_geo) loH+=`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${lo.justificativa_geo}</div>`;
+  sec('📍','GEOLOCALIZAÇÃO',loH);
   const tm=r.tempo||{};
   sec('⏱','ANÁLISE TEMPORAL',row('Hora Estimada',tm.hora_estimada,'hi')+row('Período',tm.periodo_dia)+row('Estação',tm.estacao_provavel)+row('Ano',tm.ano_provavel)+row('Data Estimada',tm.data_estimada,'ok')+cbar('Confiança',tm.confianca)+(tm.justificativa_tempo?`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${tm.justificativa_tempo}</div>`:''));
   const en=r.entidades||{};let eH='';
@@ -463,6 +514,8 @@ function renderReport(r){
   sec('⚠️','INDICADORES DE RISCO',aH);
   const inv=r.investigacao||{};let invH=cbar('Confiança Geral',inv.confianca_geral);
   if(inv.hipotese_principal)invH+=`<div class="hyp"><div class="hyp-t">HIPÓTESE PRINCIPAL</div><div style="font-size:9px;line-height:1.8">${inv.hipotese_principal}</div></div>`;
+  if(inv.hipoteses_alternativas?.length)invH+=`<div style="margin:7px 0;padding:7px;border:1px solid rgba(255,165,0,.2);border-radius:4px;background:rgba(255,165,0,.04)"><div style="font-size:7px;color:#ffa500;letter-spacing:2px;margin-bottom:4px">HIPÓTESES ALTERNATIVAS</div>${inv.hipoteses_alternativas.map(h=>`<div class="tli"><div class="tld" style="background:#ffa500;box-shadow:0 0 4px #ffa500"></div><div class="tlt">${h}</div></div>`).join('')}</div>`;
+  if(inv.limitacoes_da_analise && inv.limitacoes_da_analise!=='null')invH+=`<div class="fr"><div class="fl">LIMITAÇÕES</div><div class="fv wr">${inv.limitacoes_da_analise}</div></div>`;
   if(inv.proximas_acoes_osint?.length)invH+=`<div style="margin-top:8px"><div style="font-size:7px;color:#4a5568;letter-spacing:2px;margin-bottom:4px">PRÓXIMAS AÇÕES</div>${inv.proximas_acoes_osint.map(a=>`<div class="tli"><div class="tld"></div><div class="tlt">${a}</div></div>`).join('')}</div>`;
   if(inv.queries_busca_reversa?.length)invH+=`<div class="fr"><div class="fl">BUSCA REVERSA</div><div class="fv">${tags(inv.queries_busca_reversa,'tg')}</div></div>`;
   if(inv.fontes_consultar?.length)invH+=`<div class="fr"><div class="fl">FONTES</div><div class="fv">${tags(inv.fontes_consultar,'tb')}</div></div>`;
