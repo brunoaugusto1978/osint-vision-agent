@@ -30,7 +30,7 @@
 ![Geolocation](docs/screenshots/demo-geolocation.png)
 
 ### 🔍 Entities & Identity Profile
-> Identified airport infrastructure, ALS lighting, PAPI lights, residential area and photographer profile
+> Identified airport infrastructure, ALS lighting, PAPI lights, residential area and photographer profile (aviation spotter)
 
 ![Entities and Identity](docs/screenshots/demo-entities-identity.png)
 
@@ -69,8 +69,13 @@
 ### Option 2 — Ollama Local (100% offline, no data sent)
 
 ```bash
+# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a vision-capable model
 ollama pull llava
+
+# Run with CORS enabled
 OLLAMA_ORIGINS=* ollama serve
 ```
 
@@ -82,14 +87,16 @@ Then open `osint_agent.html`, select **🟣 OLLAMA LOCAL** and use `http://local
 
 | Format | Native API Support | Auto Conversion |
 |--------|--------------------|-----------------|
-| JPEG | ✅ | — |
-| PNG | ✅ | — |
-| WebP | ✅ | — |
-| GIF | ✅ | — |
-| AVIF | ❌ | ✅ via canvas |
-| HEIC | ❌ | ✅ via canvas* |
-| BMP | ❌ | ✅ via canvas |
-| TIFF | ❌ | ✅ via canvas |
+| JPEG   | ✅ | — |
+| PNG    | ✅ | — |
+| WebP   | ✅ | — |
+| GIF    | ✅ | — |
+| AVIF   | ❌ | ✅ via canvas |
+| HEIC   | ❌ | ✅ via canvas* |
+| BMP    | ❌ | ✅ via canvas |
+| TIFF   | ❌ | ✅ via canvas |
+
+*HEIC may require native browser support (Safari on macOS/iOS).
 
 ---
 
@@ -108,11 +115,12 @@ Then open `osint_agent.html`, select **🟣 OLLAMA LOCAL** and use `http://local
 
 ```
 osint-vision-agent/
-├── osint_agent.html
-├── docs/screenshots/
-│   ├── demo-geolocation.png
-│   ├── demo-entities-identity.png
-│   └── demo-investigative-plan.png
+├── osint_agent.html              # Main application (single-file, zero dependencies)
+├── docs/
+│   └── screenshots/
+│       ├── demo-geolocation.png
+│       ├── demo-entities-identity.png
+│       └── demo-investigative-plan.png
 ├── README.md
 ├── LICENSE
 └── .gitignore
@@ -120,9 +128,21 @@ osint-vision-agent/
 
 ---
 
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'feat: add support for X'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Open a Pull Request
+
+---
+
 ## ⚠️ Legal Disclaimer
 
-This tool is intended exclusively for legitimate security investigations, academic OSINT research, authorized forensic analysis, and protection of missing persons. **Use for illegal purposes or unauthorized surveillance is expressly prohibited.**
+This tool is intended exclusively for legitimate security investigations, academic OSINT research, authorized forensic analysis, and protection of missing persons.
+
+**Use for illegal purposes, unauthorized surveillance, or privacy invasion is expressly prohibited and is the sole responsibility of the user.**
 
 ---
 
