@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets — NUNCA comite chaves
+.env
+.env.*
+secrets.json
+api_keys.txt
+
+# Logs
+*.log
+logs/
+
+# Node (se vier a usar)
+node_modules/
