@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSINT Vision Agent v3 · Multi-LLM</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080c10;color:#c9d1d9;font-family:'Share Tech Mono',monospace;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,.015) 2px,rgba(0,255,65,.015) 4px);pointer-events:none;z-index:999}
+.header{border-bottom:1px solid #1a2a1a;padding:10px 20px;display:flex;align-items:center;gap:12px;background:#0d1117;position:sticky;top:0;z-index:10}
+.logo{width:30px;height:30px;border:2px solid #00ff41;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#00ff41;box-shadow:0 0 10px rgba(0,255,65,.3)}
+.header h1{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:#00ff41;letter-spacing:3px}
+.header p{font-size:8px;color:#4a5568;letter-spacing:2px}
+.badge{margin-left:auto;padding:3px 10px;border:1px solid #00ff41;border-radius:2px;font-size:9px;color:#00ff41;letter-spacing:2px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pbar{background:#0a0f0a;border-bottom:1px solid #1a2a1a;padding:9px 20px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.pbar label{font-size:8px;color:#4a5568;letter-spacing:2px;margin-right:4px}
+.ptabs{display:flex;gap:5px;flex-wrap:wrap}
+.ptab{background:transparent;border:1px solid #1a2a1a;color:#4a5568;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:1px;padding:4px 11px;cursor:pointer;border-radius:3px;transition:all .2s}
+.ptab:hover{border-color:#00ff41;color:#00ff41}
+.ptab.active{border-color:#00ff41;background:#00ff41;color:#000}
+.ptab[data-p="openai"].active{background:#00a67e;border-color:#00a67e;color:#fff}
+.ptab[data-p="gemini"].active{background:#4285f4;border-color:#4285f4;color:#fff}
+.ptab[data-p="groq"].active{background:#f55036;border-color:#f55036;color:#fff}
+.ptab[data-p="ollama"].active{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.mbadge{margin-left:auto;font-size:8px;color:#4a5568;letter-spacing:1px;padding:2px 8px;border:1px solid #1a2a1a;border-radius:2px}
+.cfgpanel{background:#0a0f0a;border-bottom:1px solid #1a2a1a;padding:9px 20px;display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end}
+.cg{display:flex;flex-direction:column;gap:3px;flex:1;min-width:170px}
+.cg label{font-size:8px;color:#4a5568;letter-spacing:2px}
+.ci{background:#000;border:1px solid #1a2a1a;border-radius:3px;padding:5px 8px;color:#00c3ff;font-family:'Share Tech Mono',monospace;font-size:10px;outline:none;transition:border-color .2s;width:100%}
+.ci:focus{border-color:#00ff41}
+select.ci{cursor:pointer;color:#c9d1d9}
+.csave{background:transparent;border:1px solid #00ff41;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:2px;padding:5px 12px;cursor:pointer;border-radius:3px;white-space:nowrap;align-self:flex-end}
+.csave:hover{background:#00ff41;color:#000}
+.cst{font-size:8px;margin-top:2px;letter-spacing:1px;min-height:13px}
+.onote{background:#0a0f0a;border-bottom:1px solid #1a2a1a;padding:5px 20px;font-size:8px;color:#4a5568;display:none;line-height:1.8}
+.main{display:grid;grid-template-columns:325px 1fr;gap:12px;padding:12px;max-width:1300px;margin:0 auto}
+.panel{background:#0d1117;border:1px solid #1a2a1a;border-radius:4px}
+.ph{padding:6px 12px;border-bottom:1px solid #1a2a1a;font-size:9px;color:#00ff41;letter-spacing:3px;display:flex;align-items:center;gap:5px}
+.ph::before{content:'▶';font-size:7px}
+.dz{margin:11px;border:2px dashed #1a2a1a;border-radius:4px;padding:18px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative;min-height:95px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dz:hover,.dz.over{border-color:#00ff41;background:rgba(0,255,65,.04)}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.di{font-size:22px;margin-bottom:5px;opacity:.5}
+.dt{font-size:10px;color:#4a5568;line-height:1.6}
+#prev{margin:0 11px 11px;width:calc(100% - 22px);max-height:170px;object-fit:contain;border:1px solid #1a2a1a;border-radius:4px;display:none;background:#000}
+.eg{padding:7px 11px;display:grid;grid-template-columns:1fr 1fr;gap:5px;border-bottom:1px solid #1a2a1a}
+.ei{background:rgba(0,255,65,.04);border:1px solid #1a2a1a;border-radius:3px;padding:5px 6px}
+.el{font-size:7px;color:#4a5568;letter-spacing:2px;margin-bottom:2px;text-transform:uppercase}
+.ev{font-size:9px;color:#00c3ff;word-break:break-all}
+.us{padding:7px 11px;border-bottom:1px solid #1a2a1a}
+.us label{font-size:7px;color:#4a5568;letter-spacing:2px;display:block;margin-bottom:3px}
+.ur{display:flex;gap:5px}
+.ui{flex:1;background:#000;border:1px solid #1a2a1a;border-radius:3px;padding:5px 7px;color:#c9d1d9;font-family:'Share Tech Mono',monospace;font-size:9px;outline:none;transition:border-color .2s}
+.ui:focus{border-color:#00ff41}
+.ub{background:transparent;border:1px solid #00ff41;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:9px;letter-spacing:2px;padding:5px 9px;cursor:pointer;border-radius:3px;white-space:nowrap}
+.ub:hover:not(:disabled){background:#00ff41;color:#000}
+.ub:disabled{opacity:.4;cursor:not-allowed}
+.hint{margin:0 11px 7px;padding:7px;border:1px solid #ffa500;border-radius:3px;background:rgba(255,165,0,.06);display:none}
+.ht{font-size:7px;color:#ffa500;letter-spacing:2px;margin-bottom:3px}
+.hs{font-size:8px;color:#c9d1d9;line-height:1.9}
+.ob{background:transparent;border:1px solid #ffa500;color:#ffa500;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:8px;letter-spacing:2px;padding:3px 7px;cursor:pointer;border-radius:3px;margin-top:4px}
+.ctx{padding:7px 11px 5px}
+.ctx label{font-size:7px;color:#4a5568;letter-spacing:2px;display:block;margin-bottom:3px}
+textarea{width:100%;background:#000;border:1px solid #1a2a1a;border-radius:3px;padding:6px;color:#c9d1d9;font-family:'Share Tech Mono',monospace;font-size:10px;resize:vertical;min-height:50px;outline:none}
+textarea:focus{border-color:#00ff41}
+.abtn{background:transparent;border:1px solid #00ff41;color:#00ff41;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:2px;padding:8px;cursor:pointer;border-radius:3px;width:calc(100% - 22px);margin:5px 11px 9px;display:block;transition:all .2s}
+.abtn:hover:not(:disabled){background:#00ff41;color:#000;box-shadow:0 0 12px rgba(0,255,65,.4)}
+.abtn:disabled{opacity:.4;cursor:not-allowed}
+.err{margin:0 11px 9px;padding:7px;border:1px solid #ff4141;border-radius:3px;background:rgba(255,65,65,.06);color:#ff4141;font-size:9px;display:none;white-space:pre-line;line-height:1.6}
+.rp{min-height:500px;display:flex;flex-direction:column}
+.term{padding:11px;font-size:10px;line-height:1.9;flex:1;overflow-y:auto;max-height:calc(100vh - 230px)}
+.ph2{padding:6px 12px;border-bottom:1px solid #1a2a1a;font-size:9px;color:#00ff41;letter-spacing:3px;display:flex;align-items:center;gap:5px}
+.ph2::before{content:'▶';font-size:7px}
+.placeholder{color:#4a5568;text-align:center;padding:36px 0;line-height:2}
+.spinner{display:none;text-align:center;padding:50px 0}
+.spinner.active{display:block}
+.sr{display:inline-block;width:38px;height:38px;border:3px solid #1a2a1a;border-top-color:#00ff41;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:9px}
+.st{font-size:8px;color:#4a5568;letter-spacing:3px;animation:pulse 1.5s infinite}
+.rs{margin-bottom:11px;border:1px solid #1a2a1a;border-radius:4px;overflow:hidden}
+.rst{background:rgba(0,255,65,.07);padding:5px 10px;font-size:8px;color:#00ff41;letter-spacing:3px}
+.rsb{padding:9px}
+.fr{display:grid;grid-template-columns:140px 1fr;gap:5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:baseline}
+.fr:last-child{border:none}
+.fl{font-size:8px;color:#4a5568;letter-spacing:1px;text-transform:uppercase}
+.fv{font-size:10px;color:#c9d1d9}
+.fv.hi{color:#00c3ff}.fv.ok{color:#00ff41}.fv.wr{color:#ffa500}.fv.er{color:#ff4141}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.tag{padding:2px 6px;border-radius:2px;font-size:8px;letter-spacing:1px}
+.tg{background:rgba(0,255,65,.1);border:1px solid rgba(0,255,65,.3);color:#00ff41}
+.tb{background:rgba(0,195,255,.1);border:1px solid rgba(0,195,255,.3);color:#00c3ff}
+.tr{background:rgba(255,65,65,.1);border:1px solid rgba(255,65,65,.3);color:#ff4141}
+.tw{background:rgba(255,165,0,.1);border:1px solid rgba(255,165,0,.3);color:#ffa500}
+.bw{display:flex;align-items:center;gap:7px}
+.bt{flex:1;height:3px;background:#1a2a1a;border-radius:2px;overflow:hidden}
+.bf{height:100%;background:#00ff41;border-radius:2px}
+.bl{font-size:9px;color:#00ff41;min-width:28px}
+.hyp{margin:7px 0;padding:7px;border:1px solid rgba(0,255,65,.2);border-radius:4px;background:rgba(0,255,65,.04)}
+.hyp-t{font-size:7px;color:#00ff41;letter-spacing:2px;margin-bottom:3px}
+.tli{display:flex;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.tld{width:6px;height:6px;border-radius:50%;background:#00ff41;margin-top:3px;flex-shrink:0;box-shadow:0 0 4px #00ff41}
+.tlt{flex:1;font-size:9px;line-height:1.6}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#080c10}::-webkit-scrollbar-thumb{background:#1a2a1a;border-radius:2px}
+@media(max-width:720px){.main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">👁</div>
+  <div><h1>OSINT VISION AGENT</h1><p>INVESTIGAÇÃO FORENSE MULTI-LLM · v3</p></div>
+  <div class="badge">● ONLINE</div>
+</div>
+
+<div class="pbar">
+  <label>PROVIDER</label>
+  <div class="ptabs">
+    <button class="ptab active" data-p="anthropic" onclick="setProvider('anthropic')">🟢 CLAUDE</button>
+    <button class="ptab" data-p="openai"    onclick="setProvider('openai')">⚪ GPT-4o</button>
+    <button class="ptab" data-p="gemini"    onclick="setProvider('gemini')">🔵 GEMINI</button>
+    <button class="ptab" data-p="groq"      onclick="setProvider('groq')">🔴 GROQ</button>
+    <button class="ptab" data-p="ollama"    onclick="setProvider('ollama')">🟣 OLLAMA LOCAL</button>
+  </div>
+  <div class="mbadge" id="activeBadge">claude-opus-4-5</div>
+</div>
+
+<div class="cfgpanel" id="cfgpanel"></div>
+<div class="onote" id="onote">
+  ⚠ OLLAMA: rode com <b>OLLAMA_ORIGINS=* ollama serve</b> &nbsp;·&nbsp; Use modelos com visão: llava, llava-llama3, moondream, llama3.2-vision
+</div>
+
+<div class="main">
+  <div>
+    <div class="panel" style="margin-bottom:11px">
+      <div class="ph">TARGET · IMAGEM</div>
+      <div class="dz" id="dz">
+        <input type="file" id="fi" accept="image/*">
+        <div class="di">📷</div>
+        <div class="dt">Arraste a imagem aqui<br>ou clique para selecionar<br><span style="color:#00ff41;font-size:8px">JPG · PNG · WEBP · HEIC</span></div>
+      </div>
+      <img id="prev" alt="preview">
+      <div id="eg" class="eg" style="display:none"></div>
+
+      <div class="us">
+        <label>OU URL DIRETA DA IMAGEM (.jpg .png .webp)</label>
+        <div class="ur">
+          <input type="text" class="ui" id="urlIn" placeholder="https://site.com/foto.jpg">
+          <button class="ub" id="urlBtn" onclick="loadUrl()">LOAD</button>
+        </div>
+      </div>
+      <div class="hint" id="hint">
+        <div class="ht">⚠ PÁGINA WEB · BLOQUEIO CORS</div>
+        <div class="hs">
+          <span style="color:#00ff41">1.</span> Abra a página → botão direito na foto<br>
+          <span style="color:#00ff41">2.</span> Salvar imagem como...<br>
+          <span style="color:#00ff41">3.</span> Arraste o arquivo aqui
+        </div>
+        <button class="ob" id="openBtn">🔗 ABRIR PÁGINA</button>
+      </div>
+
+      <div class="ctx">
+        <label>CONTEXTO ADICIONAL (opcional)</label>
+        <textarea id="ctx" placeholder="Ex: Foto do @usuario123 do Instagram, março/2024, suspeito de crime X"></textarea>
+      </div>
+      <button class="abtn" id="aBtn" onclick="analyze()" disabled>⚡ INICIAR ANÁLISE OSINT</button>
+      <div class="err" id="errBox"></div>
+    </div>
+  </div>
+
+  <div class="panel rp">
+    <div class="ph2">RELATÓRIO · INTELIGÊNCIA <span class="mbadge" id="rptBadge" style="margin-left:8px"></span></div>
+    <div class="spinner" id="spinner"><div class="sr"></div><div class="st">PROCESSANDO INTELIGÊNCIA...</div></div>
+    <div class="term" id="terminal">
+      <div class="placeholder">
+        ▶ Aguardando imagem para análise...<br><br>
+        <span style="font-size:8px;color:#4a5568">
+          Selecione o provider LLM acima · Configure sua API Key<br>
+          Claude · GPT-4o · Gemini · Groq · Ollama Local
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROVIDERS = {
+  anthropic: {
+    name:'Claude (Anthropic)', keyLabel:'API KEY · console.anthropic.com',
+    keyPh:'sk-ant-api03-...', keyType:'password',
+    models:['claude-opus-4-5','claude-sonnet-4-5','claude-haiku-4-5'],
+    defaultModel:'claude-opus-4-5', isLocal:false,
+    kStore:'osint_k_anthropic', mStore:'osint_m_anthropic'
+  },
+  openai: {
+    name:'GPT-4o (OpenAI)', keyLabel:'API KEY · platform.openai.com',
+    keyPh:'sk-...', keyType:'password',
+    models:['gpt-4o','gpt-4o-mini','gpt-4-turbo'],
+    defaultModel:'gpt-4o', isLocal:false,
+    kStore:'osint_k_openai', mStore:'osint_m_openai'
+  },
+  gemini: {
+    name:'Gemini (Google)', keyLabel:'API KEY · aistudio.google.com',
+    keyPh:'AIza...', keyType:'password',
+    models:['gemini-2.0-flash','gemini-1.5-pro','gemini-1.5-flash'],
+    defaultModel:'gemini-2.0-flash', isLocal:false,
+    kStore:'osint_k_gemini', mStore:'osint_m_gemini'
+  },
+  groq: {
+    name:'Groq (Cloud)', keyLabel:'API KEY · console.groq.com',
+    keyPh:'gsk_...', keyType:'password',
+    models:['meta-llama/llama-4-scout-17b-16e-instruct','llava-v1.5-7b-4096-preview','llama-3.2-11b-vision-preview'],
+    defaultModel:'meta-llama/llama-4-scout-17b-16e-instruct', isLocal:false,
+    kStore:'osint_k_groq', mStore:'osint_m_groq'
+  },
+  ollama: {
+    name:'Ollama (Local)', keyLabel:'ENDPOINT LOCAL (sem API key)',
+    keyPh:'http://localhost:11434', keyType:'text',
+    models:['llava','llava-llama3','llava:13b','moondream','llama3.2-vision'],
+    defaultModel:'llava', isLocal:true,
+    kStore:'osint_k_ollama', mStore:'osint_m_ollama'
+  }
+};
+
+let curP = 'anthropic';
+
+function setProvider(p){
+  curP = p;
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.toggle('active',t.dataset.p===p));
+  document.getElementById('onote').style.display = p==='ollama'?'block':'none';
+  renderCfg(p);
+}
+
+function renderCfg(p){
+  const cfg = PROVIDERS[p];
+  const savedKey   = localStorage.getItem(cfg.kStore)||'';
+  const savedModel = localStorage.getItem(cfg.mStore)||cfg.defaultModel;
+  const opts = cfg.models.map(m=>`<option value="${m}" ${m===savedModel?'selected':''}>${m}</option>`).join('');
+  const keyVal = savedKey||(p==='ollama'?cfg.keyPh:'');
+  document.getElementById('cfgpanel').innerHTML = `
+    <div class="cg">
+      <label>${cfg.keyLabel}</label>
+      <input class="ci" id="cfgKey" type="${cfg.keyType}" placeholder="${cfg.keyPh}" value="${keyVal}" autocomplete="off">
+      <div class="cst" id="cfgSt" style="color:${savedKey?'#00ff41':'#4a5568'}">${savedKey?'✔ Key salva':'— não configurada'}</div>
+    </div>
+    <div class="cg" style="max-width:240px">
+      <label>MODELO</label>
+      <select class="ci" id="cfgModel">${opts}</select>
+    </div>
+    <div class="cg" style="max-width:180px">
+      <label>MODELO CUSTOMIZADO</label>
+      <input class="ci" id="cfgCustom" type="text" placeholder="ou digite aqui..." value="">
+    </div>
+    <button class="csave" onclick="saveCfg()">SALVAR</button>`;
+  updateBadge();
+}
+
+function saveCfg(){
+  const cfg = PROVIDERS[curP];
+  const key   = document.getElementById('cfgKey').value.trim();
+  const sel   = document.getElementById('cfgModel').value;
+  const custom= document.getElementById('cfgCustom').value.trim();
+  const model = custom||sel;
+  if(key) localStorage.setItem(cfg.kStore, key);
+  if(model) localStorage.setItem(cfg.mStore, model);
+  const st = document.getElementById('cfgSt');
+  st.style.color='#00ff41'; st.textContent='✔ Configuração salva!';
+  updateBadge();
+}
+
+function getCfg(){
+  const cfg = PROVIDERS[curP];
+  return {
+    key:   localStorage.getItem(cfg.kStore)||document.getElementById('cfgKey')?.value||'',
+    model: localStorage.getItem(cfg.mStore)||cfg.defaultModel
+  };
+}
+
+function updateBadge(){
+  const {model}=getCfg();
+  document.getElementById('activeBadge').textContent=model;
+}
+
+// IMAGE
+let b64=null, mime='image/jpeg';
+// APIs only support: image/jpeg, image/png, image/gif, image/webp
+const SUPPORTED_TYPES = ['image/jpeg','image/png','image/gif','image/webp'];
+
+const dzEl=document.getElementById('dz'), fiEl=document.getElementById('fi');
+dzEl.addEventListener('dragover',e=>{e.preventDefault();dzEl.classList.add('over')});
+dzEl.addEventListener('dragleave',()=>dzEl.classList.remove('over'));
+dzEl.addEventListener('drop',e=>{e.preventDefault();dzEl.classList.remove('over');const f=e.dataTransfer.files[0];if(f?.type.startsWith('image/'))loadFile(f)});
+fiEl.addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0])});
+
+function loadFile(f){
+  // Read file as data URL first (works for all formats including AVIF, HEIC, BMP, TIFF)
+  const reader = new FileReader();
+  reader.onload = e => {
+    const originalSrc = e.target.result;
+    const originalType = f.type || 'image/jpeg';
+
+    // If format is natively supported by APIs, use as-is
+    if(SUPPORTED_TYPES.includes(originalType)){
+      b64 = originalSrc.split(',')[1];
+      mime = originalType;
+      showPreview(originalSrc, f);
+      return;
+    }
+
+    // Otherwise convert to JPEG via canvas (handles AVIF, HEIC, BMP, TIFF, etc)
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const jpegSrc = canvas.toDataURL('image/jpeg', 0.92);
+      b64 = jpegSrc.split(',')[1];
+      mime = 'image/jpeg';
+      showPreview(originalSrc, f, '→ convertido para JPEG');
+    };
+    img.onerror = () => {
+      // canvas failed (e.g. HEIC on some browsers), try raw anyway
+      b64 = originalSrc.split(',')[1];
+      mime = 'image/jpeg'; // force jpeg header
+      showPreview(originalSrc, f, '⚠ conversão não suportada neste browser');
+    };
+    img.src = originalSrc;
+  };
+  reader.readAsDataURL(f);
+}
+
+function showPreview(src, f, note=''){
+  const p = document.getElementById('prev');
+  p.src = src; p.style.display = 'block';
+  document.getElementById('aBtn').disabled = false;
+  showMeta(f, note);
+  hideErr();
+  document.getElementById('hint').style.display = 'none';
+}
+
+function showMeta(f, note=''){
+  const g=document.getElementById('eg');
+  const origType = f.type||'—';
+  const sentAs = mime !== origType ? `${origType} → ${mime}` : origType;
+  const d={'ARQUIVO':f.name,'TAMANHO':(f.size/1024).toFixed(1)+' KB','FORMATO ENVIADO':sentAs,'MODIFICADO':f.lastModified?new Date(f.lastModified).toLocaleString('pt-BR'):'—'};
+  g.innerHTML=Object.entries(d).map(([k,v])=>`<div class="ei"><div class="el">${k}</div><div class="ev">${v}</div></div>`).join('');
+  if(note) g.innerHTML += `<div class="ei" style="grid-column:1/-1"><div class="el">STATUS</div><div class="ev" style="color:#ffa500">${note}</div></div>`;
+  g.style.display='grid';
+}
+
+async function loadUrl(){
+  const url=document.getElementById('urlIn').value.trim();if(!url)return;
+  const hint=document.getElementById('hint'),btn=document.getElementById('urlBtn');
+  hint.style.display='none';hideErr();btn.textContent='...';btn.disabled=true;
+  const isDirect=/\.(jpe?g|png|webp|gif|bmp|tiff|heic|avif)(\?.*)?$/i.test(url);
+  if(isDirect){
+    for(const px of[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,url]){
+      try{const r=await fetch(px,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const bl=await r.blob();if(!bl.type.startsWith('image/'))continue;loadFile(new File([bl],url.split('/').pop().split('?')[0]||'img.jpg',{type:bl.type}));btn.textContent='LOAD';btn.disabled=false;return;}catch(e){continue}
+    }
+    showErr('CORS bloqueou. Salve a imagem localmente e arraste aqui.');
+  }else{
+    try{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});const data=await r.json();const html=data.contents||'';const og=html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);const im=html.match(/<img[^>]+src=["']([^"']+\.(jpe?g|png|webp))["']/i);const imgUrl=og?.[1]||im?.[1];if(imgUrl){const abs=imgUrl.startsWith('http')?imgUrl:new URL(imgUrl,url).href;document.getElementById('urlIn').value=abs;try{const r2=await fetch(`https://corsproxy.io/?${encodeURIComponent(abs)}`,{signal:AbortSignal.timeout(8000)});const bl=await r2.blob();if(bl.type.startsWith('image/')){loadFile(new File([bl],'target.jpg',{type:bl.type}));btn.textContent='LOAD';btn.disabled=false;return;}}catch(e2){}}}catch(e){}
+    hint.style.display='block';document.getElementById('openBtn').onclick=()=>window.open(url,'_blank');
+  }
+  btn.textContent='LOAD';btn.disabled=false;
+}
+
+// SYSTEM PROMPT
+const SYS=`Você é um agente especialista em OSINT e análise forense de imagens. Extraia o MÁXIMO de informações investigativas.
+
+Retorne SOMENTE JSON válido (sem markdown, sem texto externo):
+{"classificacao":{"tipo_cena":"string","ambiente":"interno|externo|misto","perspectiva":"string","qualidade":"alta|media|baixa","autenticidade":"possivelmente original|possivelmente editada|inconclusivo"},"localizacao":{"pais_provavel":"string ou null","regiao_provavel":"string ou null","cidade_provavel":"string ou null","local_especifico":"string ou null","coordenadas_estimadas":"string ou null","justificativa_geo":"string detalhada","confianca":0},"tempo":{"hora_estimada":"string ou null","periodo_dia":"madrugada|manha|tarde|entardecer|noite|indefinido","estacao_provavel":"verao|outono|inverno|primavera|indefinido","ano_provavel":"string ou null","data_estimada":"string ou null","justificativa_tempo":"string detalhada","confianca":0},"entidades":{"pessoas":[],"veiculos":[],"aeronaves":[],"estabelecimentos":[],"objetos_relevantes":[]},"pistas_digitais":{"metadados_visiveis":"string ou null","watermarks":[],"interface_ui":"string ou null","texto_visivel":[],"qr_codes":"string ou null"},"identidade":{"usuarios_possiveis":[],"plataformas_suspeitas":[],"perfil_demografico":"string","lingua_inferida":"string"},"indicadores_ameaca":{"dados_sensiveis_expostos":[],"riscos_privacidade":[],"nivel_risco":"alto|medio|baixo","justificativa_risco":"string"},"investigacao":{"hipotese_principal":"string","proximas_acoes_osint":[],"queries_busca_reversa":[],"fontes_consultar":[],"confianca_geral":0}}
+
+Analise: sombras, luz, vegetação, arquitetura, textos, logos, uniformes, placas, marcas, idioma, tipo de tomada elétrica, modelos de veículos, padrão de sinalização viária.`;
+
+// API ADAPTERS
+async function callAnthropic(key,model,img,mt,prompt){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:4000,system:SYS,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:img}},{type:'text',text:prompt}]}]})});
+  const d=await r.json();if(d.error)throw new Error('Claude: '+d.error.message);return d.content?.[0]?.text||'';
+}
+async function callOpenAI(key,model,img,mt,prompt){
+  const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model,max_tokens:4000,messages:[{role:'system',content:SYS},{role:'user',content:[{type:'image_url',image_url:{url:`data:${mt};base64,${img}`}},{type:'text',text:prompt}]}]})});
+  const d=await r.json();if(d.error)throw new Error('OpenAI: '+d.error.message);return d.choices?.[0]?.message?.content||'';
+}
+async function callGemini(key,model,img,mt,prompt){
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:SYS}]},contents:[{parts:[{inlineData:{mimeType:mt,data:img}},{text:prompt}]}],generationConfig:{maxOutputTokens:4000}})});
+  const d=await r.json();if(d.error)throw new Error('Gemini: '+d.error.message);return d.candidates?.[0]?.content?.parts?.[0]?.text||'';
+}
+async function callGroq(key,model,img,mt,prompt){
+  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model,max_tokens:4000,messages:[{role:'system',content:SYS},{role:'user',content:[{type:'image_url',image_url:{url:`data:${mt};base64,${img}`}},{type:'text',text:prompt}]}]})});
+  const d=await r.json();if(d.error)throw new Error('Groq: '+(d.error.message||JSON.stringify(d.error)));return d.choices?.[0]?.message?.content||'';
+}
+async function callOllama(endpoint,model,img,mt,prompt){
+  const base=(endpoint||'http://localhost:11434').replace(/\/$/,'');
+  const r=await fetch(`${base}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,stream:false,messages:[{role:'system',content:SYS},{role:'user',content:prompt,images:[img]}]})});
+  const d=await r.json();if(d.error)throw new Error('Ollama: '+d.error);return d.message?.content||'';
+}
+
+// ANALYZE
+async function analyze(){
+  if(!b64){showErr('Nenhuma imagem carregada.');return;}
+  const{key,model}=getCfg();
+  if(curP!=='ollama'&&(!key||key.length<8)){showErr('API Key não configurada.\nInsira a key acima e clique SALVAR.');return;}
+  const userPrompt=`Analise esta imagem com máxima profundidade como agente OSINT.${document.getElementById('ctx').value.trim()? '\n\nContexto do investigador: '+document.getElementById('ctx').value.trim():''}`;
+  const term=document.getElementById('terminal'),spin=document.getElementById('spinner');
+  term.innerHTML='';spin.classList.add('active');
+  document.getElementById('aBtn').disabled=true;
+  document.getElementById('rptBadge').textContent=`${curP.toUpperCase()} · ${model}`;
+  hideErr();
+  try{
+    let raw='';
+    if(curP==='anthropic') raw=await callAnthropic(key,model,b64,mime,userPrompt);
+    else if(curP==='openai') raw=await callOpenAI(key,model,b64,mime,userPrompt);
+    else if(curP==='gemini') raw=await callGemini(key,model,b64,mime,userPrompt);
+    else if(curP==='groq')   raw=await callGroq(key,model,b64,mime,userPrompt);
+    else if(curP==='ollama') raw=await callOllama(key,model,b64,mime,userPrompt);
+    spin.classList.remove('active');
+    let report;
+    try{const c=raw.replace(/```json|```/g,'').trim();report=JSON.parse(c.substring(c.indexOf('{'),c.lastIndexOf('}')+1));}
+    catch(e){showErr('Erro ao parsear JSON.\nResposta: '+raw.substring(0,500));document.getElementById('aBtn').disabled=false;return;}
+    renderReport(report);
+  }catch(e){spin.classList.remove('active');showErr('Erro: '+e.message);}
+  document.getElementById('aBtn').disabled=false;
+}
+
+// RENDER
+function renderReport(r){
+  const t=document.getElementById('terminal');t.innerHTML='';
+  function sec(ico,title,html){if(!html||!html.trim())return;const d=document.createElement('div');d.className='rs';d.innerHTML=`<div class="rst">${ico} ${title}</div><div class="rsb">${html}</div>`;t.appendChild(d);}
+  function row(l,v,c=''){if(!v||v==='null'||v==='indefinido')return'';return`<div class="fr"><div class="fl">${l}</div><div class="fv ${c}">${v}</div></div>`;}
+  function cbar(l,v){const p=Math.max(0,Math.min(100,v||0));return`<div class="fr"><div class="fl">${l}</div><div class="fv"><div class="bw"><div class="bt"><div class="bf" style="width:${p}%"></div></div><div class="bl">${p}%</div></div></div></div>`;}
+  function tags(arr,cls='tb'){if(!arr?.length)return'<span style="color:#4a5568;font-size:8px">Nenhum</span>';return`<div class="tags">${arr.map(x=>`<span class="tag ${cls}">${x}</span>`).join('')}</div>`;}
+  const cl=r.classificacao||{};
+  sec('🎯','CLASSIFICAÇÃO',row('Tipo de Cena',cl.tipo_cena,'hi')+row('Ambiente',cl.ambiente)+row('Perspectiva',cl.perspectiva)+row('Qualidade',cl.qualidade)+row('Autenticidade',cl.autenticidade,cl.autenticidade?.includes('editada')?'wr':''));
+  const lo=r.localizacao||{};
+  sec('📍','GEOLOCALIZAÇÃO',row('País',lo.pais_provavel,'hi')+row('Região',lo.regiao_provavel)+row('Cidade',lo.cidade_provavel,'hi')+row('Local Específico',lo.local_especifico,'ok')+row('Coordenadas',lo.coordenadas_estimadas)+cbar('Confiança',lo.confianca)+(lo.justificativa_geo?`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${lo.justificativa_geo}</div>`:''));
+  const tm=r.tempo||{};
+  sec('⏱','ANÁLISE TEMPORAL',row('Hora Estimada',tm.hora_estimada,'hi')+row('Período',tm.periodo_dia)+row('Estação',tm.estacao_provavel)+row('Ano',tm.ano_provavel)+row('Data Estimada',tm.data_estimada,'ok')+cbar('Confiança',tm.confianca)+(tm.justificativa_tempo?`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${tm.justificativa_tempo}</div>`:''));
+  const en=r.entidades||{};let eH='';
+  if(en.pessoas?.length)eH+=`<div class="fr"><div class="fl">PESSOAS</div><div class="fv">${tags(en.pessoas,'tb')}</div></div>`;
+  if(en.aeronaves?.length)eH+=`<div class="fr"><div class="fl">AERONAVES</div><div class="fv">${tags(en.aeronaves,'tg')}</div></div>`;
+  if(en.veiculos?.length)eH+=`<div class="fr"><div class="fl">VEÍCULOS</div><div class="fv">${tags(en.veiculos,'tb')}</div></div>`;
+  if(en.estabelecimentos?.length)eH+=`<div class="fr"><div class="fl">LOCAIS</div><div class="fv">${tags(en.estabelecimentos,'tw')}</div></div>`;
+  if(en.objetos_relevantes?.length)eH+=`<div class="fr"><div class="fl">OBJETOS</div><div class="fv">${tags(en.objetos_relevantes)}</div></div>`;
+  if(eH)sec('🔍','ENTIDADES',eH);
+  const pd=r.pistas_digitais||{};let pH=row('Metadados',pd.metadados_visiveis)+row('Interface UI',pd.interface_ui,'hi')+row('QR Codes',pd.qr_codes);
+  if(pd.texto_visivel?.length)pH+=`<div class="fr"><div class="fl">TEXTO</div><div class="fv">${tags(pd.texto_visivel,'tb')}</div></div>`;
+  if(pd.watermarks?.length)pH+=`<div class="fr"><div class="fl">WATERMARKS</div><div class="fv">${tags(pd.watermarks,'tw')}</div></div>`;
+  sec('💾','PISTAS DIGITAIS',pH);
+  const id=r.identidade||{};let iH=row('Perfil',id.perfil_demografico)+row('Língua',id.lingua_inferida,'hi');
+  if(id.usuarios_possiveis?.length)iH+=`<div class="fr"><div class="fl">USUÁRIOS</div><div class="fv">${tags(id.usuarios_possiveis,'tr')}</div></div>`;
+  if(id.plataformas_suspeitas?.length)iH+=`<div class="fr"><div class="fl">PLATAFORMAS</div><div class="fv">${tags(id.plataformas_suspeitas,'tb')}</div></div>`;
+  sec('👤','IDENTIDADE',iH);
+  const am=r.indicadores_ameaca||{};const rc=am.nivel_risco==='alto'?'er':am.nivel_risco==='medio'?'wr':'ok';
+  let aH=row('Nível de Risco',(am.nivel_risco||'').toUpperCase(),rc);
+  if(am.dados_sensiveis_expostos?.length)aH+=`<div class="fr"><div class="fl">DADOS EXPOSTOS</div><div class="fv">${tags(am.dados_sensiveis_expostos,'tr')}</div></div>`;
+  if(am.riscos_privacidade?.length)aH+=`<div class="fr"><div class="fl">RISCOS</div><div class="fv">${tags(am.riscos_privacidade,'tw')}</div></div>`;
+  if(am.justificativa_risco)aH+=`<div style="margin-top:6px;font-size:9px;color:#4a5568;line-height:1.8;border-top:1px solid #1a2a1a;padding-top:6px">${am.justificativa_risco}</div>`;
+  sec('⚠️','INDICADORES DE RISCO',aH);
+  const inv=r.investigacao||{};let invH=cbar('Confiança Geral',inv.confianca_geral);
+  if(inv.hipotese_principal)invH+=`<div class="hyp"><div class="hyp-t">HIPÓTESE PRINCIPAL</div><div style="font-size:9px;line-height:1.8">${inv.hipotese_principal}</div></div>`;
+  if(inv.proximas_acoes_osint?.length)invH+=`<div style="margin-top:8px"><div style="font-size:7px;color:#4a5568;letter-spacing:2px;margin-bottom:4px">PRÓXIMAS AÇÕES</div>${inv.proximas_acoes_osint.map(a=>`<div class="tli"><div class="tld"></div><div class="tlt">${a}</div></div>`).join('')}</div>`;
+  if(inv.queries_busca_reversa?.length)invH+=`<div class="fr"><div class="fl">BUSCA REVERSA</div><div class="fv">${tags(inv.queries_busca_reversa,'tg')}</div></div>`;
+  if(inv.fontes_consultar?.length)invH+=`<div class="fr"><div class="fl">FONTES</div><div class="fv">${tags(inv.fontes_consultar,'tb')}</div></div>`;
+  sec('🧭','PLANO INVESTIGATIVO',invH);
+  const ts=document.createElement('div');
+  ts.style.cssText='padding:7px 11px;font-size:7px;color:#4a5568;border-top:1px solid #1a2a1a;letter-spacing:2px';
+  ts.textContent=`▶ ANÁLISE CONCLUÍDA · ${new Date().toLocaleString('pt-BR')} · ${curP.toUpperCase()} · ${getCfg().model}`;
+  t.appendChild(ts);
+}
+function showErr(m){const b=document.getElementById('errBox');b.textContent='⚠ '+m;b.style.display='block'}
+function hideErr(){document.getElementById('errBox').style.display='none'}
+setProvider('anthropic');
+</script>
+</body>
+</html>
