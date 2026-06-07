@@ -26,8 +26,13 @@ SCRIPT_DIR = Path(__file__).parent
 FILES = [
     "osint_agent.html",
     "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
     "LICENSE",
     ".gitignore",
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
+    ".github/ISSUE_TEMPLATE/config.yml",
     # github_deploy.py excluído: nunca subir o script de deploy (pode conter token acidentalmente)
 ]
 # ───────────────────────────────────────────────────────────────────────────

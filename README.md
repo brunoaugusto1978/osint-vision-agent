@@ -214,9 +214,16 @@ http://localhost:11434
 osint-vision-agent/
 ├── osint_agent.html      # Main standalone application
 ├── README.md             # Documentation
+├── CONTRIBUTING.md       # Contribution guidelines
+├── SECURITY.md           # Vulnerability reporting and known limitations
 ├── LICENSE               # MIT License
 ├── .gitignore            # Git ignored files
-└── github_deploy.py      # Optional GitHub API deployment script
+├── github_deploy.py      # Optional GitHub API deployment script
+└── .github/
+    └── ISSUE_TEMPLATE/
+        ├── bug_report.md
+        ├── feature_request.md
+        └── config.yml
 ```
 
 ---
@@ -255,17 +262,25 @@ The user is solely responsible for how the tool is used, which images are analyz
 
 ## 🤝 Contributing
 
-Contributions are welcome, especially in:
+Contributions are welcome.
+
+This project is experimental and intended for study, research, and laboratory use. Before contributing, please read:
+
+* `CONTRIBUTING.md` — contribution guidelines, testing steps, and commit standards.
+* `SECURITY.md` — how to report security issues responsibly.
+
+Good contribution areas include:
 
 * Security improvements.
 * Local-mode enhancements.
-* Removing dependency on public proxies.
-* Optional secure backend support.
+* Removing dependency on public CORS proxies.
+* Optional secure backend/proxy support.
 * Privacy improvements.
 * Usability improvements.
 * Structured JSON response validation.
+* Documentation improvements.
 
-For major changes, please open an issue before submitting a pull request.
+For major changes, please open an issue first to discuss the proposal before submitting a pull request.
 
 ---
 
