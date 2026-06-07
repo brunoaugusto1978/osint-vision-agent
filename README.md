@@ -111,6 +111,7 @@ This tool is intended exclusively for:
 ```
 osint-vision-agent/
 ├── osint_agent.html     # Main application (single-file, zero dependencies)
+├── github_deploy.py     # Optional deploy script via GitHub API
 ├── README.md            # This documentation
 ├── LICENSE              # MIT License
 └── .gitignore           # Git ignore rules

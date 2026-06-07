@@ -15,7 +15,7 @@ import urllib.error
 from pathlib import Path
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")  # defina via: export GITHUB_TOKEN=ghp_...
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")  # defina via variável de ambiente GITHUB_TOKEN ou informe via prompt seguro
 REPO_NAME    = "osint-vision-agent"
 REPO_DESC    = "👁 OSINT Vision Agent — Investigação forense de imagens com múltiplos LLMs (Claude, GPT-4o, Gemini, Groq, Ollama)"
 PRIVATE      = False   # True = repositório privado
