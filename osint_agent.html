@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: https://fonts.googleapis.com https://fonts.gstatic.com https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://corsproxy.io https://api.allorigins.win http://localhost:*">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://corsproxy.io https://api.allorigins.win http://localhost:*; object-src 'none'; base-uri 'none'; frame-ancestors 'none'">
 <title>OSINT Vision Agent v3 · Multi-LLM</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
@@ -110,6 +110,10 @@ textarea:focus{border-color:#00ff41}
 </head>
 <body>
 
+<div style="background:#3d1a00;border-bottom:1px solid #ff6600;padding:5px 20px;font-size:8px;color:#ffaa55;letter-spacing:1px;line-height:1.8">
+  ⚠ <b>MODO STANDALONE — RISCO DE SEGURANÇA:</b> As chamadas para Anthropic/OpenAI/Gemini/Groq são feitas diretamente do seu navegador. Sua API key fica exposta no cliente durante a sessão. <b>Não use chaves de produção ou corporativas.</b> Para uso seguro, use Ollama local ou implemente um backend/proxy.
+</div>
+
 <div class="header">
   <div class="logo">👁</div>
   <div><h1>OSINT VISION AGENT</h1><p>INVESTIGAÇÃO FORENSE MULTI-LLM · v3</p></div>
@@ -140,7 +144,7 @@ textarea:focus{border-color:#00ff41}
       <div class="dz" id="dz">
         <input type="file" id="fi" accept="image/*">
         <div class="di">📷</div>
-        <div class="dt">Arraste a imagem aqui<br>ou clique para selecionar<br><span style="color:#00ff41;font-size:8px">JPG · PNG · WEBP · HEIC</span></div>
+        <div class="dt">Arraste a imagem aqui<br>ou clique para selecionar<br><span style="color:#00ff41;font-size:8px">JPG · PNG · WEBP · GIF</span></div>
       </div>
       <img id="prev" alt="preview" onerror="this.style.display='none'">
       <div id="eg" class="eg" style="display:none"></div>
@@ -296,40 +300,18 @@ dzEl.addEventListener('drop',e=>{e.preventDefault();dzEl.classList.remove('over'
 fiEl.addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0])});
 
 function loadFile(f){
-  // Read file as data URL first (works for all formats including AVIF, HEIC, BMP, TIFF)
+  // Block unsupported formats immediately — before any canvas attempt
+  if(!SUPPORTED_TYPES.includes(f.type)){
+    b64 = null; mime = null;
+    document.getElementById('aBtn').disabled = true;
+    showErr('Formato não suportado: ' + (f.type || f.name) + '\nUse JPEG, PNG, GIF ou WebP. No Windows: abra no Paint e salve como JPEG.');
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
-    const originalSrc = e.target.result;
-    const originalType = f.type || 'image/jpeg';
-
-    // If format is natively supported by APIs, use as-is
-    if(SUPPORTED_TYPES.includes(originalType)){
-      b64 = originalSrc.split(',')[1];
-      mime = originalType;
-      showPreview(originalSrc, f);
-      return;
-    }
-
-    // Otherwise convert to JPEG via canvas (handles AVIF, HEIC, BMP, TIFF, etc)
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const jpegSrc = canvas.toDataURL('image/jpeg', 0.92);
-      b64 = jpegSrc.split(',')[1];
-      mime = 'image/jpeg';
-      showPreview(originalSrc, f, '→ convertido para JPEG');
-    };
-    img.onerror = () => {
-      // canvas failed (HEIC/TIFF/AVIF not supported) — block instead of faking MIME
-      b64 = null; mime = null;
-      document.getElementById('aBtn').disabled = true;
-      showErr('Formato não suportado: ' + (f.type || f.name) + '\nSalve a imagem como JPEG, PNG, GIF ou WebP antes de usar.');
-    };
-    img.src = originalSrc;
+    b64 = e.target.result.split(',')[1];
+    mime = f.type;
+    showPreview(e.target.result, f);
   };
   reader.readAsDataURL(f);
 }
@@ -359,13 +341,17 @@ async function loadUrl(){
   hint.style.display='none';hideErr();btn.textContent='...';btn.disabled=true;
   const isDirect=/\.(jpe?g|png|webp|gif|bmp|tiff|heic|avif)(\?.*)?$/i.test(url);
   if(isDirect){
-    // ⚠ AVISO DE PRIVACIDADE: proxies CORS públicos (corsproxy.io, allorigins.win) verão a URL investigada.
-    // Para investigações sensíveis, baixe a imagem localmente e arraste aqui.
+    if(!confirm('⚠ AVISO DE PRIVACIDADE\n\nCarregar via URL usa proxies CORS públicos (corsproxy.io, allorigins.win) que verão a URL investigada.\n\nPara investigações sensíveis, cancele e arraste a imagem localmente.\n\nDeseja continuar?')){
+      btn.textContent='LOAD';btn.disabled=false;return;
+    }
     for(const px of[`https://corsproxy.io/?${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,url]){
       try{const r=await fetch(px,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const bl=await r.blob();if(!bl.type.startsWith('image/'))continue;loadFile(new File([bl],url.split('/').pop().split('?')[0]||'img.jpg',{type:bl.type}));btn.textContent='LOAD';btn.disabled=false;return;}catch(e){continue}
     }
     showErr('CORS bloqueou. Salve a imagem localmente e arraste aqui.');
   }else{
+    if(!confirm('⚠ AVISO DE PRIVACIDADE\n\nEsta ação enviará a URL para o proxy público allorigins.win.\n\nDeseja continuar?')){
+      btn.textContent='LOAD';btn.disabled=false;return;
+    }
     try{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});const data=await r.json();const html=data.contents||'';const og=html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);const im=html.match(/<img[^>]+src=["']([^"']+\.(jpe?g|png|webp))["']/i);const imgUrl=og?.[1]||im?.[1];if(imgUrl){const abs=imgUrl.startsWith('http')?imgUrl:new URL(imgUrl,url).href;document.getElementById('urlIn').value=abs;try{const r2=await fetch(`https://corsproxy.io/?${encodeURIComponent(abs)}`,{signal:AbortSignal.timeout(8000)});const bl=await r2.blob();if(bl.type.startsWith('image/')){loadFile(new File([bl],'target.jpg',{type:bl.type}));btn.textContent='LOAD';btn.disabled=false;return;}}catch(e2){}}}catch(e){}
     hint.style.display='block';document.getElementById('openBtn').onclick=()=>window.open(url,'_blank');
   }
@@ -475,7 +461,7 @@ function renderReport(r){
   if(inv.proximas_acoes_osint?.length)invH+=`<div style="margin-top:8px"><div style="font-size:7px;color:#4a5568;letter-spacing:2px;margin-bottom:4px">PRÓXIMAS AÇÕES</div>${inv.proximas_acoes_osint.map(a=>`<div class="tli"><div class="tld"></div><div class="tlt">${esc(String(a))}</div></div>`).join('')}</div>`;
   if(inv.queries_busca_reversa?.length)invH+=`<div class="fr"><div class="fl">BUSCA REVERSA</div><div class="fv">${tags(inv.queries_busca_reversa,'tg')}</div></div>`;
   if(inv.fontes_consultar?.length)invH+=`<div class="fr"><div class="fl">FONTES</div><div class="fv">${tags(inv.fontes_consultar,'tb')}</div></div>`;
-  sec('🧭','PLANO INVESTIGATIVO',invH);
+  sec('\U0001f9ed','PLANO INVESTIGATIVO',invH);
   const ts=document.createElement('div');
   ts.style.cssText='padding:7px 11px;font-size:7px;color:#4a5568;border-top:1px solid #1a2a1a;letter-spacing:2px';
   ts.textContent=`▶ ANÁLISE CONCLUÍDA · ${new Date().toLocaleString('pt-BR')} · ${curP.toUpperCase()} · ${getCfg().model}`;
@@ -485,11 +471,14 @@ function showErr(m){const b=document.getElementById('errBox');b.textContent='⚠
 function hideErr(){document.getElementById('errBox').style.display='none'}
 
 // ─── HTML ESCAPER (prevent XSS from LLM-returned values) ─────────────────────
+// ─── HTML ESCAPER (prevent XSS from LLM-returned values) ─────────────────────
 function esc(v){
-  if(v==null)return'';
-  return String(v)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  return String(v??'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
 }
 
 setProvider('anthropic');
