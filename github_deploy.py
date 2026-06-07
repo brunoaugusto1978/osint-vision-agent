@@ -9,12 +9,13 @@ import os
 import sys
 import json
 import base64
+import getpass
 import urllib.request
 import urllib.error
 from pathlib import Path
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")  # ou cole aqui: "ghp_..."
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")  # defina via: export GITHUB_TOKEN=ghp_...
 REPO_NAME    = "osint-vision-agent"
 REPO_DESC    = "👁 OSINT Vision Agent — Investigação forense de imagens com múltiplos LLMs (Claude, GPT-4o, Gemini, Groq, Ollama)"
 PRIVATE      = False   # True = repositório privado
@@ -27,7 +28,7 @@ FILES = [
     "README.md",
     "LICENSE",
     ".gitignore",
-    "github_deploy.py",
+    # github_deploy.py excluído: nunca subir o script de deploy (pode conter token acidentalmente)
 ]
 # ───────────────────────────────────────────────────────────────────────────
 
@@ -122,8 +123,9 @@ def set_default_branch(username: str) -> None:
             "default_branch": DEFAULT_BRANCH
         })
         print(f"  ✔ Branch padrão definida: {DEFAULT_BRANCH}")
-    except Exception:
-        pass  # Não crítico
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
+        reason = getattr(e, 'code', None) or getattr(e, 'reason', str(e))
+        print(f"  ⚠ Não foi possível definir branch padrão: {reason}")
 
 
 def add_topics(username: str) -> None:
@@ -132,8 +134,9 @@ def add_topics(username: str) -> None:
     try:
         gh_request("PUT", f"/repos/{username}/{REPO_NAME}/topics", {"names": topics})
         print(f"  ✔ Tópicos adicionados: {', '.join(topics)}")
-    except Exception:
-        pass
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
+        reason = getattr(e, 'code', None) or getattr(e, 'reason', str(e))
+        print(f"  ⚠ Não foi possível adicionar tópicos: {reason}")
 
 
 def main():
@@ -144,7 +147,7 @@ def main():
     # Validar token
     global GITHUB_TOKEN
     if not GITHUB_TOKEN or GITHUB_TOKEN == "ghp_...":
-        GITHUB_TOKEN = input("\n🔑 Cole seu GitHub Personal Access Token (ghp_...): ").strip()
+        GITHUB_TOKEN = getpass.getpass("\n🔑 Cole seu GitHub Personal Access Token: ").strip()
     if not GITHUB_TOKEN:
         print("✗ Token não fornecido. Abortando.")
         sys.exit(1)
